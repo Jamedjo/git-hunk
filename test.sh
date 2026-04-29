@@ -182,6 +182,14 @@ add_hunk nosuchfile.txt +1,1 2>/dev/null || exit_code=$?
 assert_exit "file not in diff" "1" "$exit_code"
 assert_contains "error message" "no unstaged changes" "$output"
 
+echo "=== list-hunks: no color when piped ==="
+cleanup
+setup_repo
+make_two_hunks
+output="$(list_hunks 2>&1)"
+esc_count="$(echo "$output" | grep -cP '\x1b\[' || true)"
+assert_eq "no ANSI escapes when piped" "0" "$esc_count"
+
 echo "=== add-hunk: no args exits 1 ==="
 exit_code=0
 add_hunk 2>/dev/null || exit_code=$?

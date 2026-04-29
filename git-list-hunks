@@ -3,6 +3,22 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import git_hunk_utils
 
+RESET = "\033[m"
+BOLD = "\033[1m"
+CYAN = "\033[36m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+
+
+def colorize_diff_line(line, use_color):
+    if not use_color:
+        return line
+    if line.startswith("+"):
+        return f"{GREEN}{line}{RESET}"
+    if line.startswith("-"):
+        return f"{RED}{line}{RESET}"
+    return line
+
 
 def main():
     pathspecs = sys.argv[1:]
@@ -12,14 +28,20 @@ def main():
         print("No unstaged changes.", file=sys.stderr)
         sys.exit(1)
 
+    use_color = sys.stdout.isatty()
+
     files = git_hunk_utils.parse_diff(text)
     for f in files:
         for hunk in f.hunks:
             filename = extract_filename(f.header)
-            print(f"  {filename} {hunk.id}")
-            print(f"    {hunk.header_line}")
+            if use_color:
+                print(f"  {BOLD}{filename}{RESET} {BOLD}{hunk.id}{RESET}")
+                print(f"    {CYAN}{hunk.header_line}{RESET}")
+            else:
+                print(f"  {filename} {hunk.id}")
+                print(f"    {hunk.header_line}")
             for line in hunk.body.splitlines():
-                print(f"    {line}")
+                print(f"    {colorize_diff_line(line, use_color)}")
 
 
 def extract_filename(header):
