@@ -94,10 +94,6 @@ assert_exit() {
     assert_eq "$desc (exit code)" "$expected" "$actual"
 }
 
-list_hunks() {
-    python3 "$SCRIPT_DIR/git-list-hunks" "$@"
-}
-
 add_hunk() {
     python3 "$SCRIPT_DIR/git-add-hunk" "$@"
 }
@@ -107,39 +103,12 @@ checkout_hunk() {
 }
 
 extract_hunk_ids() {
-    list_hunks | grep -oP '\+\d+,\d+'
+    git diff "$@" | grep -oP '@@ -\d+,\d+ \+\d+,\d+' | grep -oP '\+\d+,\d+'
 }
 
 # --- Tests ---
 
-echo "=== list-hunks: shows hunks with IDs ==="
-setup_repo
-make_two_hunks
-output="$(list_hunks 2>&1)"
-hunk_count="$(echo "$output" | grep -cP '^\s+file\.txt \+' || true)"
-assert_eq "lists two hunks" "2" "$hunk_count"
-assert_contains "shows diff content" "+line 3 MODIFIED" "$output"
-assert_contains "shows hunk header" "@@" "$output"
-
-echo "=== list-hunks: no changes exits 1 ==="
-cleanup
-setup_repo
-output="$(list_hunks 2>&1 || true)"
-exit_code=0
-list_hunks 2>/dev/null || exit_code=$?
-assert_exit "no changes" "1" "$exit_code"
-assert_contains "error message" "No unstaged changes" "$output"
-
-echo "=== list-hunks: pathspec filter ==="
-cleanup
-setup_repo
-make_two_hunks
-echo "other change" > other.txt
-output="$(list_hunks file.txt 2>&1)"
-assert_not_contains "pathspec filters to file.txt only" "other.txt" "$output"
-
 echo "=== add-hunk: stages single hunk ==="
-cleanup
 setup_repo
 make_two_hunks
 HUNK1="$(extract_hunk_ids | head -1)"
@@ -185,14 +154,6 @@ output="$(add_hunk nosuchfile.txt +1,1 2>&1 || true)"
 add_hunk nosuchfile.txt +1,1 2>/dev/null || exit_code=$?
 assert_exit "file not in diff" "1" "$exit_code"
 assert_contains "error message" "no unstaged changes" "$output"
-
-echo "=== list-hunks: no color when piped ==="
-cleanup
-setup_repo
-make_two_hunks
-output="$(list_hunks 2>&1)"
-esc_count="$(echo "$output" | grep -cP '\x1b\[' || true)"
-assert_eq "no ANSI escapes when piped" "0" "$esc_count"
 
 echo "=== add-hunk: no args exits 1 ==="
 exit_code=0
