@@ -33,7 +33,7 @@ Hunk IDs are `+offset,count` from the unified diff `@@` header — stable as lon
 ## Install
 
 ```bash
-make install
+sudo make install
 ```
 
-Symlinks `git-list-hunks` and `git-add-hunk` into `~/.local/bin/`. Git auto-discovers `git-<name>` executables on PATH, so they become `git list-hunks` and `git add-hunk`.
+Git auto-discovers `git-<name>` executables on PATH, so they become `git list-hunks` and `git add-hunk`.
