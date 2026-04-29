@@ -102,6 +102,10 @@ add_hunk() {
     python3 "$SCRIPT_DIR/git-add-hunk" "$@"
 }
 
+checkout_hunk() {
+    python3 "$SCRIPT_DIR/git-checkout-hunk" "$@"
+}
+
 extract_hunk_ids() {
     list_hunks | grep -oP '\+\d+,\d+'
 }
@@ -193,6 +197,51 @@ assert_eq "no ANSI escapes when piped" "0" "$esc_count"
 echo "=== add-hunk: no args exits 1 ==="
 exit_code=0
 add_hunk 2>/dev/null || exit_code=$?
+assert_exit "no args" "1" "$exit_code"
+
+echo "=== checkout-hunk: discards single hunk ==="
+cleanup
+setup_repo
+make_two_hunks
+HUNK1="$(extract_hunk_ids | head -1)"
+checkout_hunk file.txt "$HUNK1"
+remaining="$(git diff)"
+assert_not_contains "first change discarded" "+line 3 MODIFIED" "$remaining"
+assert_contains "second change kept" "+line 18 MODIFIED" "$remaining"
+
+echo "=== checkout-hunk: discards all hunks ==="
+cleanup
+setup_repo
+make_two_hunks
+HUNK1="$(extract_hunk_ids | head -1)"
+HUNK2="$(extract_hunk_ids | tail -1)"
+checkout_hunk file.txt "$HUNK1" "$HUNK2"
+remaining="$(git diff)"
+assert_eq "no changes remain" "" "$remaining"
+
+echo "=== checkout-hunk: unknown hunk ID exits 1 ==="
+cleanup
+setup_repo
+make_two_hunks
+exit_code=0
+output="$(checkout_hunk file.txt +99,1 2>&1 || true)"
+checkout_hunk file.txt +99,1 2>/dev/null || exit_code=$?
+assert_exit "unknown hunk" "1" "$exit_code"
+assert_contains "names the bad ID" "unknown hunk: +99,1" "$output"
+
+echo "=== checkout-hunk: file not in diff exits 1 ==="
+cleanup
+setup_repo
+make_two_hunks
+exit_code=0
+output="$(checkout_hunk nosuchfile.txt +1,1 2>&1 || true)"
+checkout_hunk nosuchfile.txt +1,1 2>/dev/null || exit_code=$?
+assert_exit "file not in diff" "1" "$exit_code"
+assert_contains "error message" "no unstaged changes" "$output"
+
+echo "=== checkout-hunk: no args exits 1 ==="
+exit_code=0
+checkout_hunk 2>/dev/null || exit_code=$?
 assert_exit "no args" "1" "$exit_code"
 
 echo ""

@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+import os, sys, subprocess
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import git_hunk_utils
+
+
+def main():
+    if len(sys.argv) < 3:
+        print("usage: git checkout-hunk <file> <hunk-id>...", file=sys.stderr)
+        sys.exit(1)
+
+    filepath = sys.argv[1]
+    requested_ids = set(sys.argv[2:])
+
+    text = git_hunk_utils.run_git_diff([filepath])
+
+    if not text.strip():
+        print(f"no unstaged changes in {filepath}", file=sys.stderr)
+        sys.exit(1)
+
+    files = git_hunk_utils.parse_diff(text)
+    if not files:
+        print(f"no unstaged changes in {filepath}", file=sys.stderr)
+        sys.exit(1)
+
+    file_diff = files[0]
+    available_ids = {h.id for h in file_diff.hunks}
+
+    unknown = requested_ids - available_ids
+    if unknown:
+        for uid in sorted(unknown):
+            print(f"unknown hunk: {uid}", file=sys.stderr)
+        print("available hunks:", file=sys.stderr)
+        for h in file_diff.hunks:
+            print(f"  {h.id}  {h.header_line}", file=sys.stderr)
+        sys.exit(1)
+
+    selected = [h for h in file_diff.hunks if h.id in requested_ids]
+    patch = reassemble_patch(file_diff.header, selected)
+
+    # Apply in reverse to the working tree to discard the selected hunks
+    proc = subprocess.run(
+        ["git", "apply", "--reverse"],
+        input=patch,
+        text=True,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        print(proc.stderr, file=sys.stderr, end="")
+        sys.exit(proc.returncode)
+
+
+def reassemble_patch(file_header, hunks):
+    parts = [file_header]
+    for h in hunks:
+        parts.append(h.header_line + "\n")
+        parts.append(h.body + "\n")
+    return "".join(parts)
+
+
+if __name__ == "__main__":
+    main()
