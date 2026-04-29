@@ -3,10 +3,18 @@ import os, sys, subprocess
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import git_hunk_utils
 
+USAGE = """\
+usage: git checkout-hunk <file> <hunk-id>...
+
+Hunk IDs use the NEW file side of the @@ header: +offset,count
+Example: @@ -10,5 +12,7 @@  →  hunk ID is +12,7 (NOT -10,5)
+
+Run 'git diff <file>' to see available hunk IDs."""
+
 
 def main():
     if len(sys.argv) < 3:
-        print("usage: git checkout-hunk <file> <hunk-id>...", file=sys.stderr)
+        print(USAGE, file=sys.stderr)
         sys.exit(1)
 
     filepath = sys.argv[1]
@@ -29,10 +37,12 @@ def main():
     unknown = requested_ids - available_ids
     if unknown:
         for uid in sorted(unknown):
-            print(f"unknown hunk: {uid}", file=sys.stderr)
-        print("available hunks:", file=sys.stderr)
+            print(f"error: unknown hunk ID: {uid}", file=sys.stderr)
+            if uid.startswith("-"):
+                print(f"  hint: '{uid}' is the OLD file side; use the NEW file side (+offset,count) instead", file=sys.stderr)
+        print(f"\navailable hunk IDs for {filepath}:", file=sys.stderr)
         for h in file_diff.hunks:
-            print(f"  {h.id}  {h.header_line}", file=sys.stderr)
+            print(f"  {h.id}", file=sys.stderr)
         sys.exit(1)
 
     selected = [h for h in file_diff.hunks if h.id in requested_ids]

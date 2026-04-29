@@ -142,8 +142,20 @@ exit_code=0
 output="$(add_hunk file.txt +99,1 2>&1 || true)"
 add_hunk file.txt +99,1 2>/dev/null || exit_code=$?
 assert_exit "unknown hunk" "1" "$exit_code"
-assert_contains "names the bad ID" "unknown hunk: +99,1" "$output"
+assert_contains "names the bad ID" "unknown hunk ID: +99,1" "$output"
 assert_contains "lists available hunks" "$HUNK1" "$output"
+assert_not_contains "no raw @@ header" "@@" "$output"
+
+echo "=== add-hunk: minus-prefix hint ==="
+cleanup
+setup_repo
+make_two_hunks
+output="$(add_hunk file.txt -1,6 2>&1 || true)"
+assert_contains "hints about old vs new side" "OLD file side" "$output"
+
+echo "=== add-hunk: no args shows usage ==="
+output="$(add_hunk 2>&1 || true)"
+assert_contains "usage explains format" "+offset,count" "$output"
 
 echo "=== add-hunk: file not in diff exits 1 ==="
 cleanup
@@ -154,11 +166,6 @@ output="$(add_hunk nosuchfile.txt +1,1 2>&1 || true)"
 add_hunk nosuchfile.txt +1,1 2>/dev/null || exit_code=$?
 assert_exit "file not in diff" "1" "$exit_code"
 assert_contains "error message" "no unstaged changes" "$output"
-
-echo "=== add-hunk: no args exits 1 ==="
-exit_code=0
-add_hunk 2>/dev/null || exit_code=$?
-assert_exit "no args" "1" "$exit_code"
 
 echo "=== checkout-hunk: discards single hunk ==="
 cleanup
@@ -188,7 +195,19 @@ exit_code=0
 output="$(checkout_hunk file.txt +99,1 2>&1 || true)"
 checkout_hunk file.txt +99,1 2>/dev/null || exit_code=$?
 assert_exit "unknown hunk" "1" "$exit_code"
-assert_contains "names the bad ID" "unknown hunk: +99,1" "$output"
+assert_contains "names the bad ID" "unknown hunk ID: +99,1" "$output"
+assert_not_contains "no raw @@ header" "@@" "$output"
+
+echo "=== checkout-hunk: minus-prefix hint ==="
+cleanup
+setup_repo
+make_two_hunks
+output="$(checkout_hunk file.txt -1,6 2>&1 || true)"
+assert_contains "hints about old vs new side" "OLD file side" "$output"
+
+echo "=== checkout-hunk: no args shows usage ==="
+output="$(checkout_hunk 2>&1 || true)"
+assert_contains "usage explains format" "+offset,count" "$output"
 
 echo "=== checkout-hunk: file not in diff exits 1 ==="
 cleanup
@@ -199,11 +218,6 @@ output="$(checkout_hunk nosuchfile.txt +1,1 2>&1 || true)"
 checkout_hunk nosuchfile.txt +1,1 2>/dev/null || exit_code=$?
 assert_exit "file not in diff" "1" "$exit_code"
 assert_contains "error message" "no unstaged changes" "$output"
-
-echo "=== checkout-hunk: no args exits 1 ==="
-exit_code=0
-checkout_hunk 2>/dev/null || exit_code=$?
-assert_exit "no args" "1" "$exit_code"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
