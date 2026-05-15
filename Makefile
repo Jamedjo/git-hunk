@@ -1,6 +1,6 @@
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
-SCRIPTS = git-add-hunk git-checkout-hunk
+SCRIPTS = git-add-hunk git-checkout-hunk git-reset-hunk
 
 .PHONY: install uninstall
 

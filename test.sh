@@ -102,8 +102,16 @@ checkout_hunk() {
     python3 "$SCRIPT_DIR/git-checkout-hunk" "$@"
 }
 
+reset_hunk() {
+    python3 "$SCRIPT_DIR/git-reset-hunk" "$@"
+}
+
 extract_hunk_ids() {
     git diff "$@" | grep -oP '@@ -\d+,\d+ \+\d+,\d+' | grep -oP '\+\d+,\d+'
+}
+
+extract_cached_hunk_ids() {
+    git diff --cached "$@" | grep -oP '@@ -\d+,\d+ \+\d+,\d+' | grep -oP '\+\d+,\d+'
 }
 
 # --- Tests ---
@@ -218,6 +226,59 @@ output="$(checkout_hunk nosuchfile.txt +1,1 2>&1 || true)"
 checkout_hunk nosuchfile.txt +1,1 2>/dev/null || exit_code=$?
 assert_exit "file not in diff" "1" "$exit_code"
 assert_contains "error message" "no unstaged changes" "$output"
+
+echo "=== reset-hunk: unstages single hunk ==="
+cleanup
+setup_repo
+make_two_hunks
+git add file.txt
+HUNK1="$(extract_cached_hunk_ids | head -1)"
+HUNK2="$(extract_cached_hunk_ids | tail -1)"
+reset_hunk file.txt "$HUNK1"
+staged="$(git diff --cached)"
+unstaged="$(git diff)"
+assert_not_contains "first change unstaged" "+line 3 MODIFIED" "$staged"
+assert_contains "second change still staged" "+line 18 MODIFIED" "$staged"
+assert_contains "first change back in working tree" "+line 3 MODIFIED" "$unstaged"
+
+echo "=== reset-hunk: unstages all hunks ==="
+cleanup
+setup_repo
+make_two_hunks
+git add file.txt
+HUNK1="$(extract_cached_hunk_ids | head -1)"
+HUNK2="$(extract_cached_hunk_ids | tail -1)"
+reset_hunk file.txt "$HUNK1" "$HUNK2"
+staged="$(git diff --cached)"
+assert_eq "nothing left staged" "" "$staged"
+unstaged="$(git diff)"
+assert_contains "first change back unstaged" "+line 3 MODIFIED" "$unstaged"
+assert_contains "second change back unstaged" "+line 18 MODIFIED" "$unstaged"
+
+echo "=== reset-hunk: unknown hunk ID exits 1 ==="
+cleanup
+setup_repo
+make_two_hunks
+git add file.txt
+exit_code=0
+output="$(reset_hunk file.txt +99,1 2>&1 || true)"
+reset_hunk file.txt +99,1 2>/dev/null || exit_code=$?
+assert_exit "unknown hunk" "1" "$exit_code"
+assert_contains "names the bad ID" "unknown hunk ID: +99,1" "$output"
+
+echo "=== reset-hunk: file not staged exits 1 ==="
+cleanup
+setup_repo
+make_two_hunks
+exit_code=0
+output="$(reset_hunk file.txt +1,1 2>&1 || true)"
+reset_hunk file.txt +1,1 2>/dev/null || exit_code=$?
+assert_exit "file not staged" "1" "$exit_code"
+assert_contains "error message" "no staged changes" "$output"
+
+echo "=== reset-hunk: no args shows usage ==="
+output="$(reset_hunk 2>&1 || true)"
+assert_contains "usage explains format" "+offset,count" "$output"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

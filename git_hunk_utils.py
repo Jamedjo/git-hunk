@@ -20,8 +20,10 @@ def hunk_id(new_offset, new_count):
     return f"+{new_offset},{new_count}"
 
 
-def run_git_diff(pathspecs=None):
+def run_git_diff(pathspecs=None, cached=False):
     cmd = ["git", "diff"]
+    if cached:
+        cmd.append("--cached")
     if pathspecs:
         cmd += ["--"] + list(pathspecs)
     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
