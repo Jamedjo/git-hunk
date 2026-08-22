@@ -60,3 +60,9 @@ sudo make install
 ```
 
 Git auto-discovers `git-<name>` executables on PATH, so they become `git add-hunk`, `git reset-hunk`, and `git checkout-hunk`.
+
+## Licence
+
+[NICE Licence](LICENSE) (NICE Is Copycentral Enforced) — MIT-style permissive, with one extra condition:
+this code may never be placed under copyleft terms. Use it anywhere, commercially or otherwise, except in
+works whose licence would require this code's source to be made available.
